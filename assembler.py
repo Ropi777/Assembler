@@ -1,15 +1,21 @@
+'''
+Assembler for riscv32 processor, translate single assembler file into machine code
+'''
+
+# Complete list of Riscv32 basic instruction set  
+# instructions will be translated by lookig to table by instruction name
 instr_table = {
-  "add":   {"type":"R-FORMAT", "func7":"0000000","func3":"000", "opcode":"0110011"},      # Add
-  "sub":   {"type":"R-FORMAT", "func7":"0100000","func3":"000", "opcode":"0110011"},      # Subtract
-  "addi":  {"type":"R-FORMAT","func3":"000", "opcode":"0010011"},        # Add immediate
+  "add":   {"type":"R-FORMAT", "func7":"0000000","func3":"000", "opcode":"0110011"},
+  "sub":   {"type":"R-FORMAT", "func7":"0100000","func3":"000", "opcode":"0110011"},
+  "addi":  {"type":"R-FORMAT","func3":"000", "opcode":"0010011"},
   "xor":   {"type":"R-FORMAT", "func7":"0000000","func3":"100", "opcode":"0110011"},
   "srl":   {"type":"R-FORMAT", "func7":"0000000","func3":"101", "opcode":"0110011"},
   "sra":   {"type":"R-FORMAT", "func7":"0100000","func3":"101", "opcode":"0110011"},
   "or":    {"type":"R-FORMAT", "func7":"0000000","func3":"110", "opcode":"0110011"},
   "and":   {"type":"R-FORMAT", "func7":"0000000","func3":"111", "opcode":"0110011"}, 
-  "sll":   {"type":"R-FORMAT", "func7":"0000000","func3":"001", "opcode":"0110011"}, # Shift left logical
-  "lr.d": {"type":"R-FORMAT", "func7":"0001000", "func3":"011","opcode":"0110011"},
-  "lr.d": {"type":"R-FORMAT", "func7":"0001100", "func3":"011","opcode":"0110011"},
+  "sll":   {"type":"R-FORMAT", "func7":"0000000","func3":"001", "opcode":"0110011"},
+  "lr.d":  {"type":"R-FORMAT", "func7":"0001000", "func3":"011","opcode":"0110011"},
+  "lr.d":  {"type":"R-FORMAT", "func7":"0001100", "func3":"011","opcode":"0110011"},
 
   "lb":    {"type":"I-FORMAT", "func3":"000", "opcode":"0000011"},
   "lh":    {"type":"I-FORMAT", "func3":"001", "opcode":"0000011"},
@@ -22,38 +28,38 @@ instr_table = {
   "slli":  {"type":"I-FORMAT", "func3":"001","opcode":"0010011","imm[11:5]":"0000000"}, 
   "xori":  {"type":"I-FORMAT", "func3":"100","opcode":"0010011"},
   "srli":  {"type":"I-FORMAT", "func3":"101","opcode":"0010011","imm[11:5]":"0000000"},
-  "srai":  {"type":"I-FORMAT", "func3":"101","opcode":"010011","imm[11:5]":"0100000"},
+  "srai":  {"type":"I-FORMAT", "func3":"101","opcode":"0010011","imm[11:5]":"0100000"},
   "ori":   {"type":"I-FORMAT", "func3":"110","opcode":"0010011"},
   "andi":  {"type":"I-FORMAT", "func3":"111","opcode":"0010011"}, 
   "jalr":  {"type":"I-FORMAT", "func3":"000","opcode":"1100111"},
 
-  "sb":{"type":"S-FORMAT", "func3":"000","opcode":"0100011"},
-  "sd":{"type":"S-FORMAT", "func3":"111","opcode":"0100011"},
-  "sh":{"type":"S-FORMAT", "func3":"001","opcode":"0100011"},
-  "sw":{"type":"S-FORMAT", "func3":"010","opcode":"0100011"},
+  "sb":    {"type":"S-FORMAT", "func3":"000","opcode":"0100011"},
+  "sd":    {"type":"S-FORMAT", "func3":"111","opcode":"0100011"},
+  "sh":    {"type":"S-FORMAT", "func3":"001","opcode":"0100011"},
+  "sw":    {"type":"S-FORMAT", "func3":"010","opcode":"0100011"},
   
-  "beq":{"type":"B-FORMAT", "func3":"000","opcode":"1100011"},
-  "bne":{"type":"B-FORMAT", "func3":"001","opcode":"1100011"},
-  "blt":{"type":"B-FORMAT", "func3":"100","opcode":"1100011"},
-  "bge":{"type":"B-FORMAT", "func3":"101","opcode":"1100011"},
-  "bltu":{"type":"B-FORMAT", "func3":"110","opcode":"1100011"},
-  "bgeu":{"type":"B-FORMAT", "func3":"111","opcode":"1100011"},
+  "beq":   {"type":"B-FORMAT", "func3":"000","opcode":"1100011"},
+  "bne":   {"type":"B-FORMAT", "func3":"001","opcode":"1100011"},
+  "blt":   {"type":"B-FORMAT", "func3":"100","opcode":"1100011"},
+  "bge":   {"type":"B-FORMAT", "func3":"101","opcode":"1100011"},
+  "bltu":  {"type":"B-FORMAT", "func3":"110","opcode":"1100011"},
+  "bgeu":  {"type":"B-FORMAT", "func3":"111","opcode":"1100011"},
 
-  "lui":{"type":"U-FORMAT","opcode":"0110111"},
-  "jal":{"type":"J-FORMAT","opcode":"1101111"},
+  "lui":   {"type":"U-FORMAT","opcode":"0110111"},
+  "jal":   {"type":"J-FORMAT","opcode":"1101111"},
 }
 
 
-#tokenize instructions
 def tokenize(instruction):
   #get rid of , and '\n'
   instruction = instruction.replace(",", "")
   instruction = instruction.replace('\n', "")
   #get rid of comments
-  len_i = len(instruction)
+  len_instr = len(instruction)
   i = 1
   comment = False
-  while(i < len_i and not comment):
+  #ignore everything after //
+  while(i < len_instr and not comment):
     if (instruction[i-1] == '/' and instruction[i] == '/'):
       comment = True
     else:
@@ -72,8 +78,7 @@ def tokenize(instruction):
   return tokens
 
 
-#replace syntactic sugar with real instructions
-
+#replace pseudo with real instructions
 #translate li x9, 123 -> addi x9, x0, 123
             #mv x10, x11 -> addi x10 x11 x0
             # j label -> jal x0, label
@@ -107,7 +112,7 @@ def tokenize_program(program_instructions):
       tokenized.append(tokenized_line)
   return tokenized
 
-#travel code and put labels:adress in table, starting adress at 8000
+#travel code and put [labels:adress] into table, starting adress at 8000
 #then remove labels from code
 def labelles(program):
   label_less = []
@@ -141,6 +146,7 @@ def labelles(program):
   
   return label_less
 
+#translate register name starting with x to binary name
 def reg_to_binary(reg):
   word = bin(int(reg[1:]))[2:]
   while(len(word) < 6):
@@ -174,7 +180,7 @@ def translate(instruction):
   instr = instr_table[instr_name]
   instr_type = instr["type"]
 
-  #generate 32bits instruction based on format
+  #generate 32bits instructions based on it's format
   if (instr_name == "addi"):
     imm_11_0 = to_binary(get_shift(instruction[3]),12)[::-1] 
     rs1 = reg_to_binary(instruction[2])
@@ -182,8 +188,8 @@ def translate(instruction):
     rd = reg_to_binary(instruction[1])
     opcode = instr["opcode"]
     return imm_11_0+rs1+func3+rd+opcode
-  #easy one
-  elif(instr_type == "R-FORMAT"):
+ 
+ elif(instr_type == "R-FORMAT"):
     func7 = instr["func7"]
     rs2 = reg_to_binary(instruction[2]) # source1
     rs1 = reg_to_binary(instruction[2]) # source2
@@ -192,7 +198,6 @@ def translate(instruction):
     opcode = instr["opcode"]
     return func7+rs2+rs1+func3+rd+opcode
 
-  #harder i guess
   elif (instr_type == "I-FORMAT"):
 
     if (len(instruction) == 4):
@@ -205,7 +210,6 @@ def translate(instruction):
     rd = reg_to_binary(instruction[1])
     opcode = instr["opcode"]
     return imm_11_0+rs1+func3+rd+opcode
-
 
   elif (instr_type == "S-FORMAT"):
     imm = to_binary(get_shift(instruction[2], 12))[::-1]
@@ -227,14 +231,16 @@ def translate(instruction):
     imm_11 = imm[0]
     opcode = instr["opcode"]
     return imm_11_5+rs2+rs1+func3+imm_4_1+imm_11+opcode
-  elif (instr_type == "U-FORMAT"):
+
+elif (instr_type == "U-FORMAT"):
     imm = to_binary(instruction[2], 32)[::-1]
     imm_31_12 = imm[0:19]
     rd = reg_to_binary(instruction[1], 6)
     opcode = instr["U-FORMAT"]
     return imm_31_12 + rd + opcode
     return iimm_31_12+rd+opcode
-  elif(instr_type == "J-FORMAT" ):
+
+elif(instr_type == "J-FORMAT" ):
     imm = to_binary(instruction[2], 32)[::-1]
     imm_20 = imm[12]
     imm_10_1 = imm[21:31]
@@ -243,7 +249,8 @@ def translate(instruction):
     rd = rs1 = reg_to_binary(instruction[1],6)
     opcode = instr["U-FORMAT"]
     return imm_20+imm_10_1+imm_11+iimm_19_12+rd+opcode
-  else:
+
+else:
     print("There is not such instrucion")
     return -42
 
