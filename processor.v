@@ -1,5 +1,4 @@
 //RISCV32I Processor
-// copied from https://github.com/geohot/twitchcore/blob/master/cpu.v
 
 //ALU
 module alu(
